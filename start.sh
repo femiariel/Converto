@@ -2,7 +2,6 @@
 
 set -e
 
-# Couleurs
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
@@ -21,44 +20,16 @@ print_error() {
     echo -e "${RED}❌ $1${NC}"
 }
 
-# Aller au répertoire du projet
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_DIR"
 
-PYTHON_BIN="python3"
-if [ -x "$PROJECT_DIR/.venv/bin/python" ]; then
-    PYTHON_BIN="$PROJECT_DIR/.venv/bin/python"
-fi
-
-# Charger les ports
-if [ -f "$PROJECT_DIR/.ports" ]; then
-    source "$PROJECT_DIR/.ports"
-else
-    # Fallback si le fichier n'existe pas
-    BACKEND_PORT=5000
-    FRONTEND_PORT=3000
-    print_info "Utilisation des ports par défaut: Backend=$BACKEND_PORT, Frontend=$FRONTEND_PORT"
-fi
-
-echo ""
-echo "========================================"
-echo "🚀 Démarrage de Converto"
-echo "========================================"
-echo ""
-
-print_info "Backend sur le port $BACKEND_PORT"
-print_info "Frontend sur le port $FRONTEND_PORT"
-print_info "Ouvrez: http://localhost:$FRONTEND_PORT"
-echo ""
-
-# Vérifier que les ports sont libres
-check_port() {
+is_port_free() {
     local port=$1
 
-    if python3 - "$port" <<'PY'
+    python3 - "$port" <<'PY'
+import errno
 import socket
 import sys
-import errno
 
 port = int(sys.argv[1])
 for family, host in ((socket.AF_INET, "0.0.0.0"), (socket.AF_INET6, "::")):
@@ -74,37 +45,125 @@ for family, host in ((socket.AF_INET, "0.0.0.0"), (socket.AF_INET6, "::")):
 
 sys.exit(0)
 PY
-    then
-        return 0
-    else
-        print_error "Le port $port est déjà utilisé!"
-        return 1
-    fi
 }
 
-if ! check_port $BACKEND_PORT; then
+find_free_port() {
+    local port=$1
+    local max_port=$((port + 100))
+
+    while [ "$port" -le "$max_port" ]; do
+        if is_port_free "$port"; then
+            echo "$port"
+            return 0
+        fi
+        port=$((port + 1))
+    done
+
+    print_error "Aucun port disponible entre $1 et $max_port"
+    exit 1
+}
+
+cleanup() {
+    echo ""
+    print_info "Arrêt de Converto..."
+
+    if [ -n "${BACKEND_PID:-}" ] && kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
+        kill "$BACKEND_PID" >/dev/null 2>&1 || true
+    fi
+
+    if [ -n "${FRONTEND_PID:-}" ] && kill -0 "$FRONTEND_PID" >/dev/null 2>&1; then
+        kill "$FRONTEND_PID" >/dev/null 2>&1 || true
+    fi
+
+    print_success "Serveurs arrêtés"
+}
+
+trap cleanup EXIT INT TERM
+
+echo ""
+echo "========================================"
+echo "🚀 Démarrage automatique de Converto"
+echo "========================================"
+echo ""
+
+if [ ! -x "$PROJECT_DIR/.venv/bin/python" ]; then
+    print_info "Environnement Python absent. Installation automatique..."
+    bash "$PROJECT_DIR/install.sh"
+fi
+
+PYTHON_BIN="$PROJECT_DIR/.venv/bin/python"
+
+if [ -f "$PROJECT_DIR/.ports" ]; then
+    source "$PROJECT_DIR/.ports"
+else
+    BACKEND_PORT=5000
+    FRONTEND_PORT=3000
+fi
+
+if ! is_port_free "$BACKEND_PORT"; then
+    print_info "Backend port $BACKEND_PORT déjà utilisé, recherche d'un port libre..."
+    BACKEND_PORT=$(find_free_port 5000)
+fi
+
+if ! is_port_free "$FRONTEND_PORT"; then
+    print_info "Frontend port $FRONTEND_PORT déjà utilisé, recherche d'un port libre..."
+    FRONTEND_PORT=$(find_free_port 3000)
+fi
+
+cat > "$PROJECT_DIR/.ports" << EOF
+BACKEND_PORT=$BACKEND_PORT
+FRONTEND_PORT=$FRONTEND_PORT
+EOF
+
+mkdir -p "$PROJECT_DIR/logs"
+
+print_info "Backend sur le port $BACKEND_PORT"
+print_info "Frontend sur le port $FRONTEND_PORT"
+
+(
+    cd "$PROJECT_DIR/backend"
+    "$PYTHON_BIN" app.py
+) > "$PROJECT_DIR/logs/backend.log" 2>&1 &
+BACKEND_PID=$!
+
+(
+    cd "$PROJECT_DIR/frontend"
+    python3 -m http.server "$FRONTEND_PORT" --bind 0.0.0.0
+) > "$PROJECT_DIR/logs/frontend.log" 2>&1 &
+FRONTEND_PID=$!
+
+sleep 2
+
+if ! kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
+    print_error "Le backend n'a pas démarré. Log:"
+    tail -n 40 "$PROJECT_DIR/logs/backend.log"
     exit 1
 fi
 
-if ! check_port $FRONTEND_PORT; then
+if ! kill -0 "$FRONTEND_PID" >/dev/null 2>&1; then
+    print_error "Le frontend n'a pas démarré. Log:"
+    tail -n 40 "$PROJECT_DIR/logs/frontend.log"
     exit 1
 fi
 
-# Afficher les instructions
-echo -e "${YELLOW}📝 Instructions:${NC}"
+PUBLIC_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+
 echo ""
-echo "Ouvrez DEUX terminaux séparés et exécutez:"
+echo "========================================"
+echo -e "${GREEN}✨ Converto est lancé${NC}"
+echo "========================================"
 echo ""
-echo -e "${YELLOW}Terminal 1 (Backend):${NC}"
-echo "  cd $PROJECT_DIR/backend"
-echo "  $PYTHON_BIN app.py"
+echo -e "${GREEN}Ouvre ce site:${NC}"
+if [ -n "$PUBLIC_IP" ]; then
+    echo -e "  ${BLUE}http://$PUBLIC_IP:$FRONTEND_PORT${NC}"
+fi
+echo -e "  ${BLUE}http://localhost:$FRONTEND_PORT${NC}"
 echo ""
-echo -e "${YELLOW}Terminal 2 (Frontend):${NC}"
-echo "  cd $PROJECT_DIR/frontend"
-echo "  python3 -m http.server $FRONTEND_PORT"
+echo -e "${YELLOW}Logs:${NC}"
+echo "  Backend:  $PROJECT_DIR/logs/backend.log"
+echo "  Frontend: $PROJECT_DIR/logs/frontend.log"
 echo ""
-echo -e "${GREEN}Puis ouvrez dans votre navigateur:${NC}"
-echo "  ${BLUE}http://localhost:$FRONTEND_PORT${NC}"
+echo "Laisse ce terminal ouvert. Ctrl+C pour arrêter."
 echo ""
-echo "Appuyez sur Ctrl+C pour arrêter l'application"
-echo ""
+
+wait "$BACKEND_PID" "$FRONTEND_PID"
