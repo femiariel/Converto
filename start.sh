@@ -54,15 +54,32 @@ echo ""
 # Vérifier que les ports sont libres
 check_port() {
     local port=$1
-    if command -v lsof >/dev/null 2>&1 && lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+
+    if python3 - "$port" <<'PY'
+import socket
+import sys
+import errno
+
+port = int(sys.argv[1])
+for family, host in ((socket.AF_INET, "0.0.0.0"), (socket.AF_INET6, "::")):
+    sock = socket.socket(family, socket.SOCK_STREAM)
+    try:
+        sock.bind((host, port))
+    except OSError as exc:
+        if family == socket.AF_INET6 and exc.errno in (errno.EAFNOSUPPORT, errno.EADDRNOTAVAIL):
+            continue
+        sys.exit(1)
+    finally:
+        sock.close()
+
+sys.exit(0)
+PY
+    then
+        return 0
+    else
         print_error "Le port $port est déjà utilisé!"
         return 1
     fi
-    if command -v ss >/dev/null 2>&1 && ss -ltn | grep -q ":$port "; then
-        print_error "Le port $port est déjà utilisé!"
-        return 1
-    fi
-    return 0
 }
 
 if ! check_port $BACKEND_PORT; then

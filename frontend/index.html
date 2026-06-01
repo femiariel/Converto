@@ -468,8 +468,12 @@
 
         // Détecter automatiquement le port du backend
         async function getBackendPort() {
-            // Tester les ports courants en ordre
-            const ports = [5000, 5001, 5002, 5003, 8000, 8001];
+            // Tester la plage choisie par install.sh, puis les anciens ports courants.
+            const ports = [
+                ...Array.from({ length: 101 }, (_, index) => 5000 + index),
+                8000,
+                8001
+            ];
             
             for (let port of ports) {
                 try {

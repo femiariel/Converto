@@ -17,17 +17,25 @@ NC='\033[0m' # No Color
 is_port_in_use() {
     local port=$1
 
-    if command -v lsof >/dev/null 2>&1; then
-        lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1
-        return $?
-    fi
+    python3 - "$port" <<'PY'
+import socket
+import sys
+import errno
 
-    if command -v ss >/dev/null 2>&1; then
-        ss -ltn | grep -q ":$port "
-        return $?
-    fi
+port = int(sys.argv[1])
+for family, host in ((socket.AF_INET, "0.0.0.0"), (socket.AF_INET6, "::")):
+    sock = socket.socket(family, socket.SOCK_STREAM)
+    try:
+        sock.bind((host, port))
+    except OSError as exc:
+        if family == socket.AF_INET6 and exc.errno in (errno.EAFNOSUPPORT, errno.EADDRNOTAVAIL):
+            continue
+        sys.exit(0)
+    finally:
+        sock.close()
 
-    return 1
+sys.exit(1)
+PY
 }
 
 find_free_port() {
