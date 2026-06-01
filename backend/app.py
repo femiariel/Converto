@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, request, send_file, jsonify, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from PIL import Image
@@ -23,6 +23,8 @@ CORS(app)
 
 # Configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR = os.path.dirname(BASE_DIR)
+FRONTEND_DIR = os.path.join(PROJECT_DIR, 'frontend')
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
 DOWNLOAD_FOLDER = os.path.join(BASE_DIR, 'downloads')
 ALLOWED_EXTENSIONS = {'pdf', 'docx', 'doc'}
@@ -35,6 +37,11 @@ os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['DOWNLOAD_FOLDER'] = DOWNLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
+
+@app.route('/', methods=['GET'])
+def serve_frontend():
+    """Servir l'interface web depuis le backend pour les tunnels/reverse proxies."""
+    return send_from_directory(FRONTEND_DIR, 'index.html')
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -266,5 +273,6 @@ if __name__ == '__main__':
         except:
             pass
     
+    debug = os.environ.get('CONVERTO_DEBUG', '').lower() in ('1', 'true', 'yes')
     print(f"🚀 Backend démarrant sur le port {port}")
-    app.run(debug=True, host='0.0.0.0', port=port)
+    app.run(debug=debug, host='0.0.0.0', port=port)

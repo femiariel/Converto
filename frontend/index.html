@@ -461,13 +461,31 @@
     <script>
         const API_HOST = window.location.hostname || 'localhost';
         const API_PROTOCOL = window.location.protocol === 'https:' ? 'https:' : 'http:';
+        let API_BASE = '';
 
         function apiUrl(path) {
-            return `${API_PROTOCOL}//${API_HOST}:${BACKEND_PORT}${path}`;
+            return `${API_BASE}${path}`;
+        }
+
+        async function isBackendAvailable(baseUrl) {
+            try {
+                const response = await fetch(`${baseUrl}/api/health`, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                return response.ok;
+            } catch (e) {
+                return false;
+            }
         }
 
         // Détecter automatiquement le port du backend
-        async function getBackendPort() {
+        async function getBackendBaseUrl() {
+            if (await isBackendAvailable('')) {
+                console.log('✅ Backend trouvé sur la même URL');
+                return '';
+            }
+
             // Tester la plage choisie par install.sh, puis les anciens ports courants.
             const ports = [
                 ...Array.from({ length: 101 }, (_, index) => 5000 + index),
@@ -476,30 +494,20 @@
             ];
             
             for (let port of ports) {
-                try {
-                    const response = await fetch(`${API_PROTOCOL}//${API_HOST}:${port}/api/health`, {
-                        method: 'GET',
-                        mode: 'cors'
-                    });
-                    
-                    if (response.ok) {
-                        console.log(`✅ Backend trouvé sur le port ${port}`);
-                        return port;
-                    }
-                } catch (e) {
-                    // Port non disponible, continue
+                const baseUrl = `${API_PROTOCOL}//${API_HOST}:${port}`;
+                if (await isBackendAvailable(baseUrl)) {
+                    console.log(`✅ Backend trouvé sur le port ${port}`);
+                    return baseUrl;
                 }
             }
             
             console.error('Backend non trouvé. Assurez-vous qu\'il fonctionne.');
-            return 5000; // Fallback
+            return `${API_PROTOCOL}//${API_HOST}:5000`;
         }
-        
-        let BACKEND_PORT = 5000;
-        
-        // Initialiser le port au chargement
+
+        // Initialiser l'URL API au chargement
         document.addEventListener('DOMContentLoaded', async () => {
-            BACKEND_PORT = await getBackendPort();
+            API_BASE = await getBackendBaseUrl();
         });
         
         const uploadArea = document.getElementById('uploadArea');
