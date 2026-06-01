@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Converto - Compression d'Images</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 50px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #999;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            color: #333;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .upload-hint {
+            color: #999;
+            font-size: 14px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-info {
+            background: #f8f9ff;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .file-info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .file-info-item:last-child {
+            border-bottom: none;
+        }
+
+        .file-info-label {
+            color: #666;
+            font-weight: 600;
+        }
+
+        .file-info-value {
+            color: #333;
+            font-weight: 500;
+        }
+
+        .progress-section {
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        .progress-section.show {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .results-section {
+            display: none;
+            background: #f0fdf4;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 4px solid #22c55e;
+            margin-bottom: 20px;
+        }
+
+        .results-section.show {
+            display: block;
+        }
+
+        .results-section.error {
+            background: #fef2f2;
+            border-left-color: #ef4444;
+        }
+
+        .results-title {
+            font-weight: 600;
+            color: #166534;
+            margin-bottom: 15px;
+        }
+
+        .results-section.error .results-title {
+            color: #991b1b;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-label {
+            color: #166534;
+            font-weight: 500;
+        }
+
+        .results-section.error .result-label {
+            color: #991b1b;
+        }
+
+        .result-value {
+            color: #166534;
+            font-weight: 600;
+        }
+
+        .results-section.error .result-value {
+            color: #991b1b;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .feature {
+            text-align: center;
+        }
+
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .feature-name {
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .error-message {
+            background: #fef2f2;
+            color: #991b1b;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .checkbox-group {
+            margin: 15px 0 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #667eea;
+        }
+
+        .checkbox-group label {
+            cursor: pointer;
+            font-size: 14px;
+            color: #666;
+            margin: 0;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 30px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .upload-area {
+                padding: 25px;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">📄</div>
+            <h1>Converto</h1>
+            <p class="subtitle">Compressez les images de vos documents en quelques secondes</p>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value">88 Mo</div>
+                    <div class="stat-label">Avant</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">→</div>
+                    <div class="stat-label"></div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">&lt; 5 Mo</div>
+                    <div class="stat-label">Après</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Glissez votre document ici</div>
+            <div class="upload-hint">ou cliquez pour parcourir (PDF, DOCX max 500 Mo)</div>
+            <input type="file" id="fileInput" accept=".pdf,.docx,.doc">
+        </div>
+
+        <div class="file-info" id="fileInfo">
+            <div class="file-info-item">
+                <span class="file-info-label">Fichier :</span>
+                <span class="file-info-value" id="fileName">-</span>
+            </div>
+            <div class="file-info-item">
+                <span class="file-info-label">Taille :</span>
+                <span class="file-info-value" id="fileSize">-</span>
+            </div>
+        </div>
+
+        <div class="progress-section" id="progressSection">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text">Compression en cours... ⏳</div>
+        </div>
+
+        <div class="results-section" id="resultsSection">
+            <div class="results-title">✅ Compression réussie!</div>
+            <div class="result-item">
+                <span class="result-label">Taille originale :</span>
+                <span class="result-value" id="originalSize">-</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Taille compressée :</span>
+                <span class="result-value" id="compressedSize">-</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Réduction :</span>
+                <span class="result-value" id="compressionRatio">-</span>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-primary" id="downloadBtn" style="display: none;">⬇️ Télécharger</button>
+            <button class="btn-secondary" id="resetBtn" style="display: none;">🔄 Nouveau fichier</button>
+        </div>
+
+        <div class="checkbox-group">
+            <input type="checkbox" id="zipOption" name="zipOption">
+            <label for="zipOption">📦 Zipper le fichier (compression supplémentaire)</label>
+        </div>
+
+        <button class="btn-primary" id="uploadBtn" style="width: 100%;">📤 Compresser</button>
+
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">⚡</div>
+                <div class="feature-name">Rapide</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🔒</div>
+                <div class="feature-name">Sécurisé</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">✨</div>
+                <div class="feature-name">Gratuit</div>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📄</div>
+                <div class="feature-name">PDF & DOCX</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Détecter automatiquement le port du backend
+        async function getBackendPort() {
+            // Tester les ports courants en ordre
+            const ports = [5000, 5001, 5002, 5003, 8000, 8001];
+            
+            for (let port of ports) {
+                try {
+                    const response = await fetch(`http://localhost:${port}/api/health`, {
+                        method: 'GET',
+                        mode: 'cors'
+                    });
+                    
+                    if (response.ok) {
+                        console.log(`✅ Backend trouvé sur le port ${port}`);
+                        return port;
+                    }
+                } catch (e) {
+                    // Port non disponible, continue
+                }
+            }
+            
+            console.error('Backend non trouvé. Assurez-vous qu\'il fonctionne.');
+            return 5000; // Fallback
+        }
+        
+        let BACKEND_PORT = 5000;
+        
+        // Initialiser le port au chargement
+        document.addEventListener('DOMContentLoaded', async () => {
+            BACKEND_PORT = await getBackendPort();
+        });
+        
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const fileInfo = document.getElementById('fileInfo');
+        const progressSection = document.getElementById('progressSection');
+        const resultsSection = document.getElementById('resultsSection');
+        const errorMessage = document.getElementById('errorMessage');
+
+        let selectedFile = null;
+        let currentFilename = null;
+
+        // Upload area click
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            // Vérifier le type
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!['pdf', 'docx', 'doc'].includes(ext)) {
+                showError('Format non supporté. Utilisez PDF ou DOCX.');
+                return;
+            }
+
+            // Vérifier la taille
+            if (file.size > 500 * 1024 * 1024) {
+                showError('Le fichier est trop volumineux. Maximum 500 Mo.');
+                return;
+            }
+
+            selectedFile = file;
+            hideError();
+            showFileInfo(file);
+        }
+
+        function showFileInfo(file) {
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatBytes(file.size);
+            fileInfo.classList.add('show');
+            uploadBtn.style.display = 'block';
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        uploadBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            formData.append('zip', document.getElementById('zipOption').checked);
+
+            try {
+                uploadBtn.disabled = true;
+                hideError();
+                fileInfo.classList.remove('show');
+                progressSection.classList.add('show');
+                resultsSection.classList.remove('show');
+
+                // Simuler la progression
+                animateProgress();
+
+                const response = await fetch(`http://localhost:${BACKEND_PORT}/api/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Erreur lors de la compression');
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    currentFilename = result.filename;
+                    showResults(result);
+                } else {
+                    throw new Error(result.error || 'Erreur inconnue');
+                }
+            } catch (error) {
+                showError(error.message || 'Erreur lors de la compression');
+                progressSection.classList.remove('show');
+            } finally {
+                uploadBtn.disabled = false;
+            }
+        });
+
+        function animateProgress() {
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 30;
+                if (progress > 90) progress = 90;
+                document.getElementById('progressFill').style.width = progress + '%';
+                
+                if (progress >= 90) {
+                    clearInterval(interval);
+                }
+            }, 200);
+        }
+
+        function showResults(result) {
+            progressSection.classList.remove('show');
+            
+            document.getElementById('originalSize').textContent = formatBytes(result.original_size);
+            document.getElementById('compressedSize').textContent = formatBytes(result.compressed_size) + (result.is_zipped ? ' 📦' : '');
+            document.getElementById('compressionRatio').textContent = result.compression_ratio + '%';
+
+            // Afficher message ZIP si applicable
+            let resultsTitle = '✅ Compression réussie!';
+            if (result.is_zipped) {
+                resultsTitle += ' (Zippé)';
+            }
+            document.querySelector('.results-title').textContent = resultsTitle;
+
+            resultsSection.classList.remove('error');
+            resultsSection.classList.add('show');
+            downloadBtn.style.display = 'block';
+            resetBtn.style.display = 'block';
+            uploadBtn.style.display = 'none';
+
+            // Finir la barre de progression
+            document.getElementById('progressFill').style.width = '100%';
+        }
+
+        downloadBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch(`http://localhost:${BACKEND_PORT}/api/download/${currentFilename}`);
+                if (!response.ok) throw new Error('Erreur du téléchargement');
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = currentFilename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                showError('Erreur lors du téléchargement');
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            selectedFile = null;
+            currentFilename = null;
+            fileInput.value = '';
+            fileInfo.classList.remove('show');
+            resultsSection.classList.remove('show');
+            progressSection.classList.remove('show');
+            document.getElementById('progressFill').style.width = '0%';
+            downloadBtn.style.display = 'none';
+            resetBtn.style.display = 'none';
+            uploadBtn.style.display = 'block';
+            uploadArea.classList.remove('dragover');
+            hideError();
+        });
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+        }
+
+        function hideError() {
+            errorMessage.classList.remove('show');
+        }
+    </script>
+</body>
+</html>
