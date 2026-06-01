@@ -25,6 +25,11 @@ print_error() {
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJECT_DIR"
 
+PYTHON_BIN="python3"
+if [ -x "$PROJECT_DIR/.venv/bin/python" ]; then
+    PYTHON_BIN="$PROJECT_DIR/.venv/bin/python"
+fi
+
 # Charger les ports
 if [ -f "$PROJECT_DIR/.ports" ]; then
     source "$PROJECT_DIR/.ports"
@@ -49,7 +54,11 @@ echo ""
 # Vérifier que les ports sont libres
 check_port() {
     local port=$1
-    if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+    if command -v lsof >/dev/null 2>&1 && lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+        print_error "Le port $port est déjà utilisé!"
+        return 1
+    fi
+    if command -v ss >/dev/null 2>&1 && ss -ltn | grep -q ":$port "; then
         print_error "Le port $port est déjà utilisé!"
         return 1
     fi
@@ -64,25 +73,6 @@ if ! check_port $FRONTEND_PORT; then
     exit 1
 fi
 
-# Créer les fichiers de démarrage temporaires
-BACKEND_SCRIPT=$(mktemp)
-FRONTEND_SCRIPT=$(mktemp)
-
-cat > "$BACKEND_SCRIPT" << 'BACKEND_EOF'
-#!/bin/bash
-cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/backend"
-python app.py
-BACKEND_EOF
-
-cat > "$FRONTEND_SCRIPT" << 'FRONTEND_EOF'
-#!/bin/bash
-cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/frontend"
-python -m http.server 3000
-FRONTEND_EOF
-
-chmod +x "$BACKEND_SCRIPT"
-chmod +x "$FRONTEND_SCRIPT"
-
 # Afficher les instructions
 echo -e "${YELLOW}📝 Instructions:${NC}"
 echo ""
@@ -90,11 +80,11 @@ echo "Ouvrez DEUX terminaux séparés et exécutez:"
 echo ""
 echo -e "${YELLOW}Terminal 1 (Backend):${NC}"
 echo "  cd $PROJECT_DIR/backend"
-echo "  python app.py"
+echo "  $PYTHON_BIN app.py"
 echo ""
 echo -e "${YELLOW}Terminal 2 (Frontend):${NC}"
 echo "  cd $PROJECT_DIR/frontend"
-echo "  python -m http.server $FRONTEND_PORT"
+echo "  python3 -m http.server $FRONTEND_PORT"
 echo ""
 echo -e "${GREEN}Puis ouvrez dans votre navigateur:${NC}"
 echo "  ${BLUE}http://localhost:$FRONTEND_PORT${NC}"

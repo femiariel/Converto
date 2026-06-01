@@ -459,6 +459,13 @@
     </div>
 
     <script>
+        const API_HOST = window.location.hostname || 'localhost';
+        const API_PROTOCOL = window.location.protocol === 'https:' ? 'https:' : 'http:';
+
+        function apiUrl(path) {
+            return `${API_PROTOCOL}//${API_HOST}:${BACKEND_PORT}${path}`;
+        }
+
         // Détecter automatiquement le port du backend
         async function getBackendPort() {
             // Tester les ports courants en ordre
@@ -466,7 +473,7 @@
             
             for (let port of ports) {
                 try {
-                    const response = await fetch(`http://localhost:${port}/api/health`, {
+                    const response = await fetch(`${API_PROTOCOL}//${API_HOST}:${port}/api/health`, {
                         method: 'GET',
                         mode: 'cors'
                     });
@@ -587,7 +594,7 @@
                 // Simuler la progression
                 animateProgress();
 
-                const response = await fetch(`http://localhost:${BACKEND_PORT}/api/upload`, {
+                const response = await fetch(apiUrl('/api/upload'), {
                     method: 'POST',
                     body: formData
                 });
@@ -652,7 +659,7 @@
 
         downloadBtn.addEventListener('click', async () => {
             try {
-                const response = await fetch(`http://localhost:${BACKEND_PORT}/api/download/${currentFilename}`);
+                const response = await fetch(apiUrl(`/api/download/${currentFilename}`));
                 if (!response.ok) throw new Error('Erreur du téléchargement');
                 
                 const blob = await response.blob();

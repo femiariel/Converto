@@ -14,12 +14,28 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Fonction pour trouver un port libre
+is_port_in_use() {
+    local port=$1
+
+    if command -v lsof >/dev/null 2>&1; then
+        lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1
+        return $?
+    fi
+
+    if command -v ss >/dev/null 2>&1; then
+        ss -ltn | grep -q ":$port "
+        return $?
+    fi
+
+    return 1
+}
+
 find_free_port() {
     local port=$1
     local max_port=$((port + 100))
     
     while [ $port -le $max_port ]; do
-        if ! lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+        if ! is_port_in_use "$port"; then
             echo $port
             return 0
         fi
@@ -53,6 +69,21 @@ fi
 PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
 print_success "Python $PYTHON_VERSION trouvé"
 
+# Vérifier le module venv
+print_info "Vérification de python3-venv..."
+if ! python3 -m venv --help >/dev/null 2>&1; then
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update
+        sudo apt-get install -y python3-venv
+        print_success "python3-venv installé via apt"
+    else
+        print_error "Le module venv n'est pas disponible. Installez python3-venv puis relancez."
+        exit 1
+    fi
+else
+    print_success "python3-venv trouvé"
+fi
+
 # Vérifier Ghostscript (pour PDF)
 print_info "Vérification de Ghostscript (pour PDF)..."
 if ! command -v gs &> /dev/null; then
@@ -81,8 +112,9 @@ print_info "Répertoire du projet: $PROJECT_DIR"
 
 # Installer les dépendances Python
 print_info "Installation des dépendances Python..."
-cd backend
-pip install -q -r requirements.txt
+python3 -m venv "$PROJECT_DIR/.venv"
+"$PROJECT_DIR/.venv/bin/python" -m pip install -q --upgrade pip
+"$PROJECT_DIR/.venv/bin/python" -m pip install -q -r "$PROJECT_DIR/backend/requirements.txt"
 print_success "Dépendances installées"
 
 cd "$PROJECT_DIR"
@@ -110,7 +142,7 @@ echo "🚀 Pour démarrer l'application:"
 echo ""
 echo -e "${YELLOW}Terminal 1 (Backend):${NC}"
 echo "  cd $PROJECT_DIR/backend"
-echo "  python app.py"
+echo "  $PROJECT_DIR/.venv/bin/python app.py"
 echo ""
 echo -e "${YELLOW}Terminal 2 (Frontend):${NC}"
 echo "  cd $PROJECT_DIR/frontend"
